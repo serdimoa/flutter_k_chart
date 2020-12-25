@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'chart_style.dart';
 import 'entity/info_window_entity.dart';
 import 'entity/k_line_entity.dart';
@@ -19,6 +21,7 @@ class KChartWidget extends StatefulWidget {
   final VolState volState;
   final SecondaryState secondaryState;
   final bool isLine;
+  final Function() onTapChartChanger;
 
   KChartWidget(
     this.datas, {
@@ -26,6 +29,7 @@ class KChartWidget extends StatefulWidget {
     this.volState = VolState.VOL,
     this.secondaryState = SecondaryState.MACD,
     this.isLine,
+    this.onTapChartChanger,
     int fractionDigits = 2,
   }) {
     NumberUtil.fractionDigits = fractionDigits;
@@ -35,7 +39,8 @@ class KChartWidget extends StatefulWidget {
   _KChartWidgetState createState() => _KChartWidgetState();
 }
 
-class _KChartWidgetState extends State<KChartWidget> with TickerProviderStateMixin {
+class _KChartWidgetState extends State<KChartWidget>
+    with TickerProviderStateMixin {
   AnimationController _controller;
   Animation<double> _animation;
   double mScaleX = 1.0, mScrollX = 0.0, mSelectX = 0.0;
@@ -47,6 +52,8 @@ class _KChartWidgetState extends State<KChartWidget> with TickerProviderStateMix
     return mScaleX;
   }
 
+  bool isLine = false;
+
   double _lastScale = 1.0;
   bool isScale = false, isDrag = false, isLongPress = false;
 
@@ -54,10 +61,15 @@ class _KChartWidgetState extends State<KChartWidget> with TickerProviderStateMix
   void initState() {
     super.initState();
     mInfoWindowStream = StreamController<InfoWindowEntity>();
-    _controller = AnimationController(duration: const Duration(milliseconds: 850), vsync: this);
-    _animation = Tween(begin: 0.9, end: 0.1).animate(_controller)..addListener(() => setState(() {}));
+    _controller = AnimationController(
+        duration: const Duration(milliseconds: 850), vsync: this);
+    _animation = Tween(begin: 0.9, end: 0.1).animate(_controller)
+      ..addListener(() => setState(() {}));
     _scrollXController = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 500), lowerBound: double.negativeInfinity, upperBound: double.infinity);
+        vsync: this,
+        duration: const Duration(milliseconds: 500),
+        lowerBound: double.negativeInfinity,
+        upperBound: double.infinity);
     _scrollListener();
   }
 
@@ -75,7 +87,8 @@ class _KChartWidgetState extends State<KChartWidget> with TickerProviderStateMix
       }
     });
     _scrollXController.addStatusListener((status) {
-      if (status == AnimationStatus.completed || status == AnimationStatus.dismissed) {
+      if (status == AnimationStatus.completed ||
+          status == AnimationStatus.dismissed) {
         isDrag = false;
         notifyChanged();
       }
@@ -115,15 +128,19 @@ class _KChartWidgetState extends State<KChartWidget> with TickerProviderStateMix
       },
       onHorizontalDragUpdate: (details) {
         if (isScale || isLongPress) return;
-        mScrollX = (details.primaryDelta / mScaleX + mScrollX).clamp(0.0, ChartPainter.maxScrollX);
+        mScrollX = (details.primaryDelta / mScaleX + mScrollX)
+            .clamp(0.0, ChartPainter.maxScrollX);
         notifyChanged();
       },
       onHorizontalDragEnd: (DragEndDetails details) {
         // isDrag = false;
         final Tolerance tolerance = Tolerance(
-          velocity:
-              1.0 / (0.050 * WidgetsBinding.instance.window.devicePixelRatio), // logical pixels per second
-          distance: 1.0 / WidgetsBinding.instance.window.devicePixelRatio, // logical pixels
+          velocity: 1.0 /
+              (0.050 *
+                  WidgetsBinding.instance.window
+                      .devicePixelRatio), // logical pixels per second
+          distance: 1.0 /
+              WidgetsBinding.instance.window.devicePixelRatio, // logical pixels
         );
 
         ClampingScrollSimulation simulation = ClampingScrollSimulation(
@@ -182,6 +199,33 @@ class _KChartWidgetState extends State<KChartWidget> with TickerProviderStateMix
                 opacity: _animation.value,
                 controller: _controller),
           ),
+          Positioned(
+            top: 24,
+            left: 16,
+            child: InkWell(
+              onTap: () {
+                widget.onTapChartChanger();
+              },
+              child: Container(
+                color: Color(0xff090F24),
+                height: 24,
+                width: 24,
+                child: Center(
+                  child: widget.isLine
+                      ? SvgPicture.asset(
+                          'assets/images/barsChart.svg',
+                          width: 14,
+                          height: 22,
+                        )
+                      : SvgPicture.asset(
+                          'assets/images/lineChart.svg',
+                          width: 20,
+                          height: 13,
+                        ),
+                ),
+              ),
+            ),
+          ),
           _buildInfoDialog()
         ],
       ),
@@ -198,71 +242,145 @@ class _KChartWidgetState extends State<KChartWidget> with TickerProviderStateMix
 
   void notifyChanged() => setState(() {});
 
-  List<String> infoNames = ["时间", "开", "高", "低", "收", "涨跌额", "涨幅", "成交量"];
+  List<String> infoNames = [
+    "Open",
+    "High",
+    "Low",
+    "Close",
+    "Change",
+    '',
+    "Volume"
+  ];
   List infos;
 
   Widget _buildInfoDialog() {
     return StreamBuilder<InfoWindowEntity>(
-        stream: mInfoWindowStream?.stream,
-        builder: (context, snapshot) {
-          if (!isLongPress || widget.isLine == true || !snapshot.hasData || snapshot.data.kLineEntity == null)
-            return Container();
-          KLineEntity entity = snapshot.data.kLineEntity;
-          double upDown = entity.close - entity.open;
-          double upDownPercent = upDown / entity.open * 100;
-          infos = [
-            getDate(entity.id),
-            NumberUtil.format(entity.open),
-            NumberUtil.format(entity.high),
-            NumberUtil.format(entity.low),
-            NumberUtil.format(entity.close),
-            "${upDown > 0 ? "+" : ""}${NumberUtil.format(upDown)}",
-            "${upDownPercent > 0 ? "+" : ''}${upDownPercent.toStringAsFixed(2)}%",
-            NumberUtil.volFormat(entity.vol)
-          ];
-          return Align(
-            alignment: snapshot.data.isLeft ? Alignment.topLeft : Alignment.topRight,
-            child: Container(
-              margin: EdgeInsets.only(left: 10, right: 10, top: 25),
-              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 7),
-              decoration: BoxDecoration(
-                  color: ChartColors.markerBgColor,
-                  border: Border.all(color: ChartColors.markerBorderColor, width: 0.5)),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children:
-                    List.generate(infoNames.length, (i) => _buildItem(infos[i].toString(), infoNames[i])),
-              ),
+      stream: mInfoWindowStream?.stream,
+      builder: (context, snapshot) {
+        if (!isLongPress ||
+            !snapshot.hasData ||
+            snapshot.data.kLineEntity == null) return Container();
+        KLineEntity entity = snapshot.data.kLineEntity;
+        double upDown = entity.close - entity.open;
+        double upDownPercent = upDown / entity.open * 100;
+        infos = [
+          NumberUtil.format(entity.open),
+          NumberUtil.format(entity.high),
+          NumberUtil.format(entity.low),
+          NumberUtil.format(entity.close),
+          "${upDown > 0 ? "+" : ""}${NumberUtil.format(upDown)}",
+          "(${upDownPercent > 0 ? "+" : ''}${upDownPercent.toStringAsFixed(2)}%)",
+          NumberUtil.volFormat(entity.vol)
+        ];
+
+        return Align(
+          alignment:
+              snapshot.data.isLeft ? Alignment.topLeft : Alignment.topRight,
+          child: Container(
+            width: 150,
+            margin: EdgeInsets.only(left: 10, right: 10, top: 25),
+            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(2),
+              boxShadow: [
+                BoxShadow(
+                  color: Color.fromRGBO(51, 204, 102, 0.2),
+                  blurRadius: 10,
+                  offset: Offset(0, 1),
+                ),
+                BoxShadow(
+                  color: Color.fromRGBO(51, 204, 102, 0.12),
+                  blurRadius: 5,
+                  offset: Offset(0, 4),
+                ),
+                BoxShadow(
+                  color: Color.fromRGBO(51, 204, 102, 0.14),
+                  blurRadius: 4,
+                  offset: Offset(0, 2),
+                ),
+              ],
+              color: Color(0xff090f24),
             ),
-          );
-        });
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      getDate(entity.id),
+                      style: GoogleFonts.roboto(
+                        fontWeight: FontWeight.w300,
+                        color: Colors.white,
+                        letterSpacing: 0.4,
+                        height: 1.15,
+                        fontSize: ChartStyle.defaultTextSize,
+                      ),
+                    ),
+                  ],
+                ),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: List.generate(
+                    infoNames.length,
+                    (i) => _buildItem(infos[i].toString(), infoNames[i]),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Widget _buildItem(String info, String infoName) {
     Color color = Colors.white;
-    if (info.startsWith("+"))
-      color = Colors.green;
-    else if (info.startsWith("-"))
-      color = Colors.red;
+    if (info.startsWith("+") || info.startsWith("(+"))
+      color = Color(0xff33cc66);
+    else if (info.startsWith("-") || (info.startsWith("(-")))
+      color = Color(0xffEF4042);
     else
-      color = Colors.white;
+      color = Colors.white.withOpacity(0.5);
     return Container(
-      constraints: BoxConstraints(minWidth: 95, maxWidth: 110, maxHeight: 14.0, minHeight: 14.0),
+      constraints: BoxConstraints(
+        minWidth: 95,
+        maxWidth: 150,
+        maxHeight: 16.0,
+        minHeight: 16.0,
+      ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
+        // mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: <Widget>[
-          Text("$infoName", style: TextStyle(color: Colors.white, fontSize: ChartStyle.defaultTextSize)),
+          Text(
+            "$infoName",
+            style: GoogleFonts.roboto(
+              fontWeight: FontWeight.w300,
+              color: color,
+              height: 1.15,
+              letterSpacing: 0.4,
+              fontSize: ChartStyle.defaultTextSize,
+            ),
+          ),
           SizedBox(width: 5),
-          Text(info, style: TextStyle(color: color, fontSize: ChartStyle.defaultTextSize)),
+          Text(
+            info,
+            style: GoogleFonts.roboto(
+              fontWeight: FontWeight.w300,
+              color: color.withOpacity(1),
+              height: 1.15,
+              letterSpacing: 0.4,
+              fontSize: ChartStyle.defaultTextSize,
+            ),
+          ),
         ],
       ),
     );
   }
 
   String getDate(int date) {
-    return dateFormat(
-        DateTime.fromMillisecondsSinceEpoch(date * 1000), [yy, '-', mm, '-', dd, ' ', HH, ':', nn]);
+    return dateFormat(DateTime.fromMillisecondsSinceEpoch(date, isUtc: true),
+        [mm, '-', dd, ' ', HH, ':', nn]);
   }
 }

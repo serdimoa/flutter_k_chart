@@ -22,13 +22,13 @@ class DataUtil {
 //    double ma60 = 0;
 
     int i = 0;
-    if (isLast && dataList.length > 1) {
+    if (isLast && dataList.length > 30) {
       i = dataList.length - 1;
       var data = dataList[dataList.length - 2];
-      ma5 = data.MA5Price * 5;
-      ma10 = data.MA10Price * 10;
-      ma20 = data.MA20Price * 20;
-      ma30 = data.MA30Price * 30;
+      ma5 = (data.MA5Price ?? 0.0) * 5;
+      ma10 = (data.MA10Price ?? 0.0) * 10;
+      ma20 = (data.MA20Price ?? 0.0) * 20;
+      ma30 = (data.MA30Price ?? 0.0) * 30;
 //      ma60 = data.MA60Price * 60;
     }
     for (; i < dataList.length; i++) {
@@ -161,11 +161,11 @@ class DataUtil {
     double volumeMa10 = 0;
 
     int i = 0;
-    if (isLast && dataList.length > 1) {
+    if (isLast && dataList.length > 10) {
       i = dataList.length - 1;
       var data = dataList[dataList.length - 2];
-      volumeMa5 = data.MA5Volume * 5;
-      volumeMa10 = data.MA10Volume * 10;
+      volumeMa5 = (data.MA5Volume ?? 0.0) * 5;
+      volumeMa10 = (data.MA10Volume ?? 0.0) * 10;
     }
 
     for (; i < dataList.length; i++) {
@@ -260,6 +260,9 @@ class DataUtil {
       if (rsv.isNaN) {
         rsv = 0;
       }
+
+      k ??= 0;
+      d ??= 0;
       if (i == 0) {
         k = 50;
         d = 50;
@@ -313,7 +316,7 @@ class DataUtil {
     }
   }
 
-  //增量更新时计算最后一个数据
+  //Calculate the last data during incremental update
   static addLastData(List<KLineEntity> dataList, KLineEntity data) {
     if (dataList == null || data == null) return;
     dataList.add(data);
