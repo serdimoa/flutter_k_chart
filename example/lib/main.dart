@@ -23,7 +23,7 @@ class MyApp extends StatelessWidget {
 }
 
 class MyHomePage extends StatefulWidget {
-  MyHomePage({Key key, this.title}) : super(key: key);
+  MyHomePage({Key? key, required this.title}) : super(key: key);
 
   final String title;
 
@@ -32,12 +32,12 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  List<KLineEntity> datas;
+  List<KLineEntity> datas = [];
   bool showLoading = true;
   MainState _mainState = MainState.MA;
   SecondaryState _secondaryState = SecondaryState.MACD;
   bool isLine = true;
-  List<DepthEntity> _bids, _asks;
+  List<DepthEntity> _bids = [], _asks = [];
 
   @override
   void initState() {
@@ -46,18 +46,24 @@ class _MyHomePageState extends State<MyHomePage> {
     rootBundle.loadString('assets/depth.json').then((result) {
       final parseJson = json.decode(result);
       Map tick = parseJson['tick'];
-      var bids = tick['bids'].map((item) => DepthEntity(item[0], item[1])).toList().cast<DepthEntity>();
-      var asks = tick['asks'].map((item) => DepthEntity(item[0], item[1])).toList().cast<DepthEntity>();
+      var bids = tick['bids']
+          .map((item) => DepthEntity(item[0], item[1]))
+          .toList()
+          .cast<DepthEntity>();
+      var asks = tick['asks']
+          .map((item) => DepthEntity(item[0], item[1]))
+          .toList()
+          .cast<DepthEntity>();
       initDepth(bids, asks);
     });
   }
 
   void initDepth(List<DepthEntity> bids, List<DepthEntity> asks) {
-    if (bids == null || asks == null || bids.isEmpty || asks.isEmpty) return;
-    _bids = List();
-    _asks = List();
+    if (bids.isEmpty || asks.isEmpty) return;
+    _bids = [];
+    _asks = [];
     double amount = 0.0;
-    bids?.sort((left, right) => left.price.compareTo(right.price));
+    bids.sort((left, right) => left.price.compareTo(right.price));
     //倒序循环 //累加买入委托量
     bids.reversed.forEach((item) {
       amount += item.amount;
@@ -66,9 +72,9 @@ class _MyHomePageState extends State<MyHomePage> {
     });
 
     amount = 0.0;
-    asks?.sort((left, right) => left.price.compareTo(right.price));
+    asks.sort((left, right) => left.price.compareTo(right.price));
     //循环 //累加买入委托量
-    asks?.forEach((item) {
+    asks.forEach((item) {
       amount += item.amount;
       item.amount = amount;
       _asks.add(item);
@@ -88,18 +94,21 @@ class _MyHomePageState extends State<MyHomePage> {
               height: 450,
               margin: EdgeInsets.symmetric(horizontal: 10),
               width: double.infinity,
-               child: KChartWidget(
-                 datas,
-                 isLine: isLine,
-                 mainState: _mainState,
-                 secondaryState: _secondaryState,
-                 volState: VolState.VOL,
-                 fractionDigits: 4,
-               ),
+              child: KChartWidget(
+                datas,
+                isLine: isLine,
+                mainState: _mainState,
+                secondaryState: _secondaryState,
+                volState: VolState.VOL,
+                fractionDigits: 4,
+              ),
             ),
             if (showLoading)
               Container(
-                  width: double.infinity, height: 450, alignment: Alignment.center, child: CircularProgressIndicator()),
+                  width: double.infinity,
+                  height: 450,
+                  alignment: Alignment.center,
+                  child: CircularProgressIndicator()),
           ]),
           buildButtons(),
           Container(
@@ -136,7 +145,12 @@ class _MyHomePageState extends State<MyHomePage> {
         button("addData", onPressed: () {
           //拷贝一个对象，修改数据
           var kLineEntity = KLineEntity.fromJson(datas.last.toJson());
-          kLineEntity.id += 60 * 60 * 24;
+          if (kLineEntity.id == null) {
+            kLineEntity.id = 60 * 60 * 24;
+          } else {
+            kLineEntity.id = kLineEntity.id! + 60 * 60 * 24;
+          }
+
           kLineEntity.open = kLineEntity.close;
           kLineEntity.close += (Random().nextInt(100) - 50).toDouble();
           datas.last.high = max(datas.last.high, datas.last.close);
@@ -146,39 +160,42 @@ class _MyHomePageState extends State<MyHomePage> {
         button("1month", onPressed: () async {
 //              showLoading = true;
 //              setState(() {});
-              //getData('1mon');
-              String result = await rootBundle.loadString('assets/kmon.json');
-              Map parseJson = json.decode(result);
-              List list = parseJson['data'];
-              datas = list.map((item) => KLineEntity.fromJson(item)).toList().reversed.toList().cast<KLineEntity>();
-              DataUtil.calculate(datas);
+          //getData('1mon');
+          String result = await rootBundle.loadString('assets/kmon.json');
+          Map parseJson = json.decode(result);
+          List list = parseJson['data'];
+          datas = list
+              .map((item) => KLineEntity.fromJson(item))
+              .toList()
+              .reversed
+              .toList()
+              .cast<KLineEntity>();
+          DataUtil.calculate(datas);
         }),
-        FlatButton(
-            onPressed: (){
-              showLoading = true;
-              setState(() {});
-              getData('1day');
-            },
-            child: Text("1day"),
-            color: Colors.blue),
+        TextButton(
+          onPressed: () {
+            showLoading = true;
+            setState(() {});
+            getData('1day');
+          },
+          child: Text("1day"),
+        ),
       ],
     );
   }
 
-  Widget button(String text, {VoidCallback onPressed}) {
-    return FlatButton(
-        onPressed: () {
-          if (onPressed != null) {
-            onPressed();
-            setState(() {});
-          }
-        },
-        child: Text("$text"),
-        color: Colors.blue);
+  Widget button(String text, {required VoidCallback onPressed}) {
+    return TextButton(
+      onPressed: () {
+        onPressed();
+        setState(() {});
+      },
+      child: Text("$text"),
+    );
   }
 
   void getData(String period) async {
-    String result;
+    String result = "{}";
     try {
       result = await getIPAddress('$period');
     } catch (e) {
@@ -187,18 +204,24 @@ class _MyHomePageState extends State<MyHomePage> {
     } finally {
       Map parseJson = json.decode(result);
       List list = parseJson['data'];
-      datas = list.map((item) => KLineEntity.fromJson(item)).toList().reversed.toList().cast<KLineEntity>();
+      datas = list
+          .map((item) => KLineEntity.fromJson(item))
+          .toList()
+          .reversed
+          .toList()
+          .cast<KLineEntity>();
       DataUtil.calculate(datas);
       showLoading = false;
       setState(() {});
     }
   }
 
-  Future<String> getIPAddress(String period) async {
+  Future<String> getIPAddress(String? period) async {
     //火币api，需要翻墙
-    var url = 'https://api.huobi.br.com/market/history/kline?period=${period ?? '1day'}&size=300&symbol=btcusdt';
+    var url =
+        'https://api.huobi.br.com/market/history/kline?period=${period ?? '1day'}&size=300&symbol=btcusdt';
     String result;
-    var response = await http.get(url).timeout(Duration(seconds: 7));
+    var response = await http.get(Uri.parse(url)).timeout(Duration(seconds: 7));
     if (response.statusCode == 200) {
       result = response.body;
     } else {

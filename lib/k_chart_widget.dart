@@ -20,8 +20,8 @@ class KChartWidget extends StatefulWidget {
   final MainState mainState;
   final VolState volState;
   final SecondaryState secondaryState;
-  final bool isLine;
-  final Function() onTapChartChanger;
+  final bool? isLine;
+  final Function()? onTapChartChanger;
 
   KChartWidget(
     this.datas, {
@@ -41,12 +41,12 @@ class KChartWidget extends StatefulWidget {
 
 class _KChartWidgetState extends State<KChartWidget>
     with TickerProviderStateMixin {
-  AnimationController _controller;
-  Animation<double> _animation;
+  AnimationController? _controller;
+  late Animation<double> _animation;
   double mScaleX = 1.0, mScrollX = 0.0, mSelectX = 0.0;
-  StreamController<InfoWindowEntity> mInfoWindowStream;
+  StreamController<InfoWindowEntity?>? mInfoWindowStream;
   double mWidth = 0;
-  AnimationController _scrollXController;
+  AnimationController? _scrollXController;
 
   double getMinScrollX() {
     return mScaleX;
@@ -60,10 +60,10 @@ class _KChartWidgetState extends State<KChartWidget>
   @override
   void initState() {
     super.initState();
-    mInfoWindowStream = StreamController<InfoWindowEntity>();
+    mInfoWindowStream = StreamController<InfoWindowEntity?>();
     _controller = AnimationController(
         duration: const Duration(milliseconds: 850), vsync: this);
-    _animation = Tween(begin: 0.9, end: 0.1).animate(_controller)
+    _animation = Tween(begin: 0.9, end: 0.1).animate(_controller!)
       ..addListener(() => setState(() {}));
     _scrollXController = AnimationController(
         vsync: this,
@@ -74,8 +74,8 @@ class _KChartWidgetState extends State<KChartWidget>
   }
 
   void _scrollListener() {
-    _scrollXController.addListener(() {
-      mScrollX = _scrollXController.value;
+    _scrollXController!.addListener(() {
+      mScrollX = _scrollXController!.value;
       if (mScrollX <= 0) {
         mScrollX = 0;
         _stopAnimation();
@@ -86,7 +86,7 @@ class _KChartWidgetState extends State<KChartWidget>
         notifyChanged();
       }
     });
-    _scrollXController.addStatusListener((status) {
+    _scrollXController!.addStatusListener((status) {
       if (status == AnimationStatus.completed ||
           status == AnimationStatus.dismissed) {
         isDrag = false;
@@ -128,8 +128,8 @@ class _KChartWidgetState extends State<KChartWidget>
       },
       onHorizontalDragUpdate: (details) {
         if (isScale || isLongPress) return;
-        mScrollX = (details.primaryDelta / mScaleX + mScrollX)
-            .clamp(0.0, ChartPainter.maxScrollX);
+        mScrollX = (details.primaryDelta! / mScaleX + mScrollX)
+            .clamp(0.0, ChartPainter.maxScrollX) as double;
         notifyChanged();
       },
       onHorizontalDragEnd: (DragEndDetails details) {
@@ -137,18 +137,19 @@ class _KChartWidgetState extends State<KChartWidget>
         final Tolerance tolerance = Tolerance(
           velocity: 1.0 /
               (0.050 *
-                  WidgetsBinding.instance.window
+                  WidgetsBinding.instance!.window
                       .devicePixelRatio), // logical pixels per second
           distance: 1.0 /
-              WidgetsBinding.instance.window.devicePixelRatio, // logical pixels
+              WidgetsBinding
+                  .instance!.window.devicePixelRatio, // logical pixels
         );
 
         ClampingScrollSimulation simulation = ClampingScrollSimulation(
           position: mScrollX,
-          velocity: details.primaryVelocity,
+          velocity: details.primaryVelocity!,
           tolerance: tolerance,
         );
-        _scrollXController.animateWith(simulation);
+        _scrollXController!.animateWith(simulation);
       },
       onHorizontalDragCancel: () => isDrag = false,
       onScaleStart: (_) {
@@ -178,7 +179,7 @@ class _KChartWidgetState extends State<KChartWidget>
       },
       onLongPressEnd: (details) {
         isLongPress = false;
-        mInfoWindowStream?.sink?.add(null);
+        mInfoWindowStream?.sink.add(null);
         notifyChanged();
       },
       child: Stack(
@@ -204,14 +205,14 @@ class _KChartWidgetState extends State<KChartWidget>
             left: 16,
             child: InkWell(
               onTap: () {
-                widget.onTapChartChanger();
+                widget.onTapChartChanger!();
               },
               child: Container(
                 color: Color(0xff090F24),
                 height: 24,
                 width: 24,
                 child: Center(
-                  child: widget.isLine
+                  child: widget.isLine!
                       ? SvgPicture.asset(
                           'assets/images/barsChart.svg',
                           width: 14,
@@ -233,8 +234,8 @@ class _KChartWidgetState extends State<KChartWidget>
   }
 
   void _stopAnimation() {
-    if (_scrollXController != null && _scrollXController.isAnimating) {
-      _scrollXController.stop();
+    if (_scrollXController != null && _scrollXController!.isAnimating) {
+      _scrollXController!.stop();
       isDrag = false;
       notifyChanged();
     }
@@ -251,16 +252,14 @@ class _KChartWidgetState extends State<KChartWidget>
     '',
     "Volume"
   ];
-  List infos;
+  late List infos;
 
   Widget _buildInfoDialog() {
-    return StreamBuilder<InfoWindowEntity>(
+    return StreamBuilder<InfoWindowEntity?>(
       stream: mInfoWindowStream?.stream,
       builder: (context, snapshot) {
-        if (!isLongPress ||
-            !snapshot.hasData ||
-            snapshot.data.kLineEntity == null) return Container();
-        KLineEntity entity = snapshot.data.kLineEntity;
+        if (!isLongPress || !snapshot.hasData) return Container();
+        KLineEntity entity = snapshot.data!.kLineEntity;
         double upDown = entity.close - entity.open;
         double upDownPercent = upDown / entity.open * 100;
         infos = [
@@ -275,7 +274,7 @@ class _KChartWidgetState extends State<KChartWidget>
 
         return Align(
           alignment:
-              snapshot.data.isLeft ? Alignment.topLeft : Alignment.topRight,
+              snapshot.data!.isLeft ? Alignment.topLeft : Alignment.topRight,
           child: Container(
             width: 150,
             margin: EdgeInsets.only(left: 10, right: 10, top: 25),
@@ -307,7 +306,7 @@ class _KChartWidgetState extends State<KChartWidget>
                 Row(
                   children: [
                     Text(
-                      getDate(entity.id),
+                      getDate(entity.id!),
                       style: GoogleFonts.roboto(
                         fontWeight: FontWeight.w300,
                         color: Colors.white,

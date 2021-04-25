@@ -99,25 +99,25 @@ class DataUtil {
         double md = 0;
         for (int j = i - n + 1; j <= i; j++) {
           double c = dataList[j].close;
-          double m = entity.MA20Price;
+          double m = entity.MA20Price!;
           double value = c - m;
           md += value * value;
         }
         md = md / (n - 1);
         md = sqrt(md);
         entity.mb = entity.MA20Price;
-        entity.up = entity.mb + 2.0 * md;
-        entity.dn = entity.mb - 2.0 * md;
+        entity.up = entity.mb! + 2.0 * md;
+        entity.dn = entity.mb! - 2.0 * md;
       }
     }
   }
 
   static void _calcMACD(List<KLineEntity> dataList, [bool isLast = false]) {
-    double ema12 = 0;
-    double ema26 = 0;
-    double dif = 0;
-    double dea = 0;
-    double macd = 0;
+    double? ema12 = 0;
+    double? ema26 = 0;
+    double? dif = 0;
+    double? dea = 0;
+    double? macd = 0;
 
     int i = 0;
     if (isLast && dataList.length > 1) {
@@ -138,15 +138,15 @@ class DataUtil {
         ema26 = closePrice;
       } else {
         // EMA（12） = 前一日EMA（12） X 11/13 + 今日收盘价 X 2/13
-        ema12 = ema12 * 11 / 13 + closePrice * 2 / 13;
+        ema12 = ema12! * 11 / 13 + closePrice * 2 / 13;
         // EMA（26） = 前一日EMA（26） X 25/27 + 今日收盘价 X 2/27
-        ema26 = ema26 * 25 / 27 + closePrice * 2 / 27;
+        ema26 = ema26! * 25 / 27 + closePrice * 2 / 27;
       }
       // DIF = EMA（12） - EMA（26） 。
       // 今日DEA = （前一日DEA X 8/10 + 今日DIF X 2/10）
       // 用（DIF-DEA）*2即为MACD柱状图。
       dif = ema12 - ema26;
-      dea = dea * 8 / 10 + dif * 2 / 10;
+      dea = dea! * 8 / 10 + dif * 2 / 10;
       macd = (dif - dea) * 2;
       entity.dif = dif;
       entity.dea = dea;
@@ -195,9 +195,9 @@ class DataUtil {
   }
 
   static void _calcRSI(List<KLineEntity> dataList, [bool isLast = false]) {
-    double rsi;
-    double rsiABSEma = 0;
-    double rsiMaxEma = 0;
+    double? rsi;
+    double? rsiABSEma = 0;
+    double? rsiMaxEma = 0;
 
     int i = 0;
     if (isLast && dataList.length > 1) {
@@ -210,17 +210,17 @@ class DataUtil {
 
     for (; i < dataList.length; i++) {
       KLineEntity entity = dataList[i];
-      final double closePrice = entity.close;
+      final double? closePrice = entity.close;
       if (i == 0) {
         rsi = 0;
         rsiABSEma = 0;
         rsiMaxEma = 0;
       } else {
-        double Rmax = max(0, closePrice - dataList[i - 1].close);
+        double Rmax = max(0, closePrice! - dataList[i - 1].close);
         double RAbs = (closePrice - dataList[i - 1].close).abs();
 
-        rsiMaxEma = (Rmax + (14 - 1) * rsiMaxEma) / 14;
-        rsiABSEma = (RAbs + (14 - 1) * rsiABSEma) / 14;
+        rsiMaxEma = (Rmax + (14 - 1) * rsiMaxEma!) / 14;
+        rsiABSEma = (RAbs + (14 - 1) * rsiABSEma!) / 14;
         rsi = (rsiMaxEma / rsiABSEma) * 100;
       }
       if (i < 13) rsi = 0;
@@ -232,8 +232,8 @@ class DataUtil {
   }
 
   static void _calcKDJ(List<KLineEntity> dataList, [bool isLast = false]) {
-    double k = 0;
-    double d = 0;
+    double? k = 0;
+    double? d = 0;
 
     int i = 0;
     if (isLast && dataList.length > 1) {

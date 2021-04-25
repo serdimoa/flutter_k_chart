@@ -5,13 +5,13 @@ author: gwh <415593725@qq.com>
 homepage: https://github.com/gwh/flutter_k_chart
 
 environment:
-  sdk: ">=2.7.0 <3.0.0"
+  sdk: '>=2.12.0 <3.0.0'
 
 dependencies:
   flutter:
     sdk: flutter
   google_fonts: ^2.0.0
-  flutter_svg: ^0.21.0-nullsafety
+  flutter_svg: ^0.22.0
 
 
 dev_dependencies:
